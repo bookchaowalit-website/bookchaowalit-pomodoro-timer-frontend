@@ -1,65 +1,187 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+
+export default function PomodoroTimer() {
+  const [minutes, setMinutes] = useState(25);
+  const [seconds, setSeconds] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [mode, setMode] = useState<'work' | 'shortBreak' | 'longBreak'>('work');
+  const [sessions, setSessions] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isActive) {
+      interval = setInterval(() => {
+        if (seconds === 0) {
+          if (minutes === 0) {
+            setIsActive(false);
+            
+            // Play sound or notification here
+            if (mode === 'work') {
+              setSessions(sessions + 1);
+              if ((sessions + 1) % 4 === 0) {
+                setMode('longBreak');
+                setMinutes(15);
+              } else {
+                setMode('shortBreak');
+                setMinutes(5);
+              }
+            } else {
+              setMode('work');
+              setMinutes(25);
+            }
+          } else {
+            setMinutes(minutes - 1);
+            setSeconds(59);
+          }
+        } else {
+          setSeconds(seconds - 1);
+        }
+      }, 1000);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [isActive, minutes, seconds, mode, sessions]);
+
+  const reset = () => {
+    setIsActive(false);
+    if (mode === 'work') {
+      setMinutes(25);
+    } else if (mode === 'shortBreak') {
+      setMinutes(5);
+    } else {
+      setMinutes(15);
+    }
+    setSeconds(0);
+  };
+
+  const setModeAndReset = (newMode: typeof mode) => {
+    setMode(newMode);
+    setIsActive(false);
+    if (newMode === 'work') setMinutes(25);
+    else if (newMode === 'shortBreak') setMinutes(5);
+    else setMinutes(15);
+    setSeconds(0);
+  };
+
+  const progress = mode === 'work' 
+    ? ((25 * 60 - (minutes * 60 + seconds)) / (25 * 60)) * 100
+    : mode === 'shortBreak'
+    ? ((5 * 60 - (minutes * 60 + seconds)) / (5 * 60)) * 100
+    : ((15 * 60 - (minutes * 60 + seconds)) / (15 * 60)) * 100;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-orange-100 to-amber-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-8">
+      <div className="w-full max-w-lg">
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-2">🍅 Pomodoro Timer</h1>
+          <p className="text-gray-600 dark:text-gray-300">Focus on what matters</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 mb-8">
+          {/* Timer Display */}
+          <div className="text-center mb-8">
+            <div className="text-8xl font-bold text-gray-900 dark:text-white mb-4 tabular-nums">
+              {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+              <div 
+                className="h-full transition-all duration-1000 ${
+                  mode === 'work' ? 'bg-rose-500' :
+                  mode === 'shortBreak' ? 'bg-green-500' :
+                  'bg-blue-500'
+                }`}
+                style={{ width: `${100 - progress}%` }}
+              />
+            </div>
+            
+            <div className="mt-4 text-lg font-medium text-gray-600 dark:text-gray-300">
+              {mode === 'work' ? '🎯 Focus Time' : mode === 'shortBreak' ? '☕ Short Break' : '🌴 Long Break'}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-4 justify-center mb-8">
+            <button
+              onClick={() => setIsActive(!isActive)}
+              className={`px-10 py-4 rounded-xl text-white font-bold text-lg shadow-lg transition transform hover:scale-105 ${
+                isActive 
+                  ? 'bg-yellow-500 hover:bg-yellow-600' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {isActive ? '⏸ Pause' : '▶ Start'}
+            </button>
+            <button
+              onClick={reset}
+              className="px-10 py-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-bold text-lg shadow-lg transition"
+            >
+              ↺ Reset
+            </button>
+          </div>
+
+          {/* Session Counter */}
+          <div className="text-center">
+            <div className="text-gray-600 dark:text-gray-300 mb-4">Sessions completed today</div>
+            <div className="flex justify-center gap-2">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg ${
+                    i < sessions 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                  }`}
+                >
+                  {i < sessions && '🍅'}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
+
+        {/* Mode Selection */}
+        <div className="grid grid-cols-3 gap-4">
+          <button
+            onClick={() => setModeAndReset('work')}
+            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
+              mode === 'work' 
+                ? 'bg-rose-500 text-white shadow-xl' 
+                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            <div className="text-4xl mb-2">🎯</div>
+            <div className="font-bold">Focus</div>
+            <div className="text-sm opacity-75">25 min</div>
+          </button>
+          <button
+            onClick={() => setModeAndReset('shortBreak')}
+            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
+              mode === 'shortBreak' 
+                ? 'bg-green-500 text-white shadow-xl' 
+                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            <div className="text-4xl mb-2">☕</div>
+            <div className="font-bold">Short Break</div>
+            <div className="text-sm opacity-75">5 min</div>
+          </button>
+          <button
+            onClick={() => setModeAndReset('longBreak')}
+            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
+              mode === 'longBreak' 
+                ? 'bg-blue-500 text-white shadow-xl' 
+                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            <div className="text-4xl mb-2">🌴</div>
+            <div className="font-bold">Long Break</div>
+            <div className="text-sm opacity-75">15 min</div>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
