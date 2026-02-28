@@ -87,8 +87,8 @@ export default function PomodoroTimer() {
             
             {/* Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div 
-                className="h-full transition-all duration-1000 ${
+              <div
+                className={`h-full transition-all duration-1000 ${
                   mode === 'work' ? 'bg-rose-500' :
                   mode === 'shortBreak' ? 'bg-green-500' :
                   'bg-blue-500'
