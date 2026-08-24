@@ -1,187 +1,114 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 
-export default function PomodoroTimer() {
-  const [minutes, setMinutes] = useState(25);
-  const [seconds, setSeconds] = useState(0);
-  const [isActive, setIsActive] = useState(false);
-  const [mode, setMode] = useState<'work' | 'shortBreak' | 'longBreak'>('work');
+type Mode = "work" | "shortBreak" | "longBreak";
+
+const MODES: Record<Mode, { label: string; short: string; duration: number; note: string }> = {
+  work: { label: "Focus", short: "WORK", duration: 25 * 60, note: "one clear block" },
+  shortBreak: { label: "Short break", short: "PAUSE", duration: 5 * 60, note: "step away" },
+  longBreak: { label: "Long break", short: "RESET", duration: 15 * 60, note: "let the day widen" },
+};
+
+function clock(seconds: number) {
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+export default function Home() {
+  const [mode, setMode] = useState<Mode>("work");
+  const [remaining, setRemaining] = useState(MODES.work.duration);
+  const [active, setActive] = useState(false);
   const [sessions, setSessions] = useState(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isActive) {
-      interval = setInterval(() => {
-        if (seconds === 0) {
-          if (minutes === 0) {
-            setIsActive(false);
-            
-            // Play sound or notification here
-            if (mode === 'work') {
-              setSessions(sessions + 1);
-              if ((sessions + 1) % 4 === 0) {
-                setMode('longBreak');
-                setMinutes(15);
-              } else {
-                setMode('shortBreak');
-                setMinutes(5);
-              }
-            } else {
-              setMode('work');
-              setMinutes(25);
-            }
-          } else {
-            setMinutes(minutes - 1);
-            setSeconds(59);
-          }
+    if (!active) return;
+    const interval = window.setInterval(() => {
+      setRemaining((current) => {
+        if (current > 1) return current - 1;
+        setActive(false);
+        if (mode === "work") {
+          setSessions((count) => {
+            const next = count + 1;
+            const nextMode: Mode = next % 4 === 0 ? "longBreak" : "shortBreak";
+            setMode(nextMode);
+            setRemaining(MODES[nextMode].duration);
+            return next;
+          });
         } else {
-          setSeconds(seconds - 1);
+          setMode("work");
+          setRemaining(MODES.work.duration);
         }
-      }, 1000);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [isActive, minutes, seconds, mode, sessions]);
+        return 0;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [active, mode]);
+
+  const chooseMode = (nextMode: Mode) => {
+    setActive(false);
+    setMode(nextMode);
+    setRemaining(MODES[nextMode].duration);
+  };
 
   const reset = () => {
-    setIsActive(false);
-    if (mode === 'work') {
-      setMinutes(25);
-    } else if (mode === 'shortBreak') {
-      setMinutes(5);
-    } else {
-      setMinutes(15);
-    }
-    setSeconds(0);
+    setActive(false);
+    setRemaining(MODES[mode].duration);
   };
 
-  const setModeAndReset = (newMode: typeof mode) => {
-    setMode(newMode);
-    setIsActive(false);
-    if (newMode === 'work') setMinutes(25);
-    else if (newMode === 'shortBreak') setMinutes(5);
-    else setMinutes(15);
-    setSeconds(0);
-  };
-
-  const progress = mode === 'work' 
-    ? ((25 * 60 - (minutes * 60 + seconds)) / (25 * 60)) * 100
-    : mode === 'shortBreak'
-    ? ((5 * 60 - (minutes * 60 + seconds)) / (5 * 60)) * 100
-    : ((15 * 60 - (minutes * 60 + seconds)) / (15 * 60)) * 100;
+  const progress = 1 - remaining / MODES[mode].duration;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-orange-100 to-amber-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-8">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-2">🍅 Pomodoro Timer</h1>
-          <p className="text-gray-600 dark:text-gray-300">Focus on what matters</p>
-        </div>
+    <main className="focus-shell">
+      <div className="focus-frame">
+        <header className="focus-topbar">
+          <a href="https://bookchaowalit.com" className="focus-mark" aria-label="Bookchaowalit home"><span>FOCUS</span> / FOLD</a>
+          <span>ONE CLOCK / NO SYNC</span>
+          <span>{String(sessions).padStart(2, "0")} COMPLETED</span>
+        </header>
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 mb-8">
-          {/* Timer Display */}
-          <div className="text-center mb-8">
-            <div className="text-8xl font-bold text-gray-900 dark:text-white mb-4 tabular-nums">
-              {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+        <section className="focus-intro">
+          <div>
+            <h1>Make room for<br /><em>one thing.</em></h1>
+            <p>A quiet interval clock for the work in front of you. Choose a fold, start the room, and come back when the mark is complete.</p>
+          </div>
+          <div className="fold-mark" aria-hidden="true"><span>LOCAL</span><b>{String(sessions).padStart(2, "0")}</b><span>NO ALERTS</span></div>
+        </section>
+
+        <section className="fold-desk" aria-label="Pomodoro timer">
+          <div className="fold-sheet">
+            <div className="sheet-head"><span>ACTIVE FOLD / {MODES[mode].short}</span><span>{active ? "RUNNING" : "HELD"}</span></div>
+            <div className="timer-copy">
+              <p className="field-label">{MODES[mode].label}</p>
+              <div className="timer-value" aria-live="polite">{clock(remaining)}</div>
+              <p className="timer-note">{MODES[mode].note} / {active ? "stay with it" : "ready when you are"}</p>
             </div>
-            
-            {/* Progress Bar */}
-            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-1000 ${
-                  mode === 'work' ? 'bg-rose-500' :
-                  mode === 'shortBreak' ? 'bg-green-500' :
-                  'bg-blue-500'
-                }`}
-                style={{ width: `${100 - progress}%` }}
-              />
+            <div className="crease-track" aria-label={`${Math.round(progress * 100)} percent complete`}>
+              <span style={{ width: `${progress * 100}%` }} />
             </div>
-            
-            <div className="mt-4 text-lg font-medium text-gray-600 dark:text-gray-300">
-              {mode === 'work' ? '🎯 Focus Time' : mode === 'shortBreak' ? '☕ Short Break' : '🌴 Long Break'}
+            <div className="timer-actions">
+              <button type="button" className={active ? "primary pause" : "primary"} onClick={() => setActive((value) => !value)}>{active ? "Pause clock" : "Start clock"}</button>
+              <button type="button" className="secondary" onClick={reset}>Reset fold</button>
             </div>
+            <p className="boundary-note"><b>LOCAL TIMER</b> / This page does not send alerts, store history, or sync a session.</p>
           </div>
 
-          {/* Controls */}
-          <div className="flex gap-4 justify-center mb-8">
-            <button
-              onClick={() => setIsActive(!isActive)}
-              className={`px-10 py-4 rounded-xl text-white font-bold text-lg shadow-lg transition transform hover:scale-105 ${
-                isActive 
-                  ? 'bg-yellow-500 hover:bg-yellow-600' 
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {isActive ? '⏸ Pause' : '▶ Start'}
-            </button>
-            <button
-              onClick={reset}
-              className="px-10 py-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-bold text-lg shadow-lg transition"
-            >
-              ↺ Reset
-            </button>
-          </div>
-
-          {/* Session Counter */}
-          <div className="text-center">
-            <div className="text-gray-600 dark:text-gray-300 mb-4">Sessions completed today</div>
-            <div className="flex justify-center gap-2">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg ${
-                    i < sessions 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
-                  }`}
-                >
-                  {i < sessions && '🍅'}
-                </div>
+          <aside className="mode-rail">
+            <div className="sheet-head"><span>FOLD TYPES</span><span>SELECT ONE</span></div>
+            <div className="mode-list">
+              {(Object.keys(MODES) as Mode[]).map((item) => (
+                <button type="button" key={item} className={mode === item ? "mode-row selected" : "mode-row"} onClick={() => chooseMode(item)} aria-pressed={mode === item}>
+                  <span className="mode-index">{item === "work" ? "A" : item === "shortBreak" ? "B" : "C"}</span>
+                  <span><strong>{MODES[item].label}</strong><small>{MODES[item].duration / 60} MIN / {MODES[item].note}</small></span>
+                  <span className="mode-state">{mode === item ? "OPEN" : "FOLD"}</span>
+                </button>
               ))}
             </div>
-          </div>
-        </div>
+            <div className="session-log"><span className="field-label">SESSION MARKS</span><div>{[0, 1, 2, 3].map((mark) => <span className={mark < sessions % 4 ? "mark filled" : "mark"} key={mark}>{mark < sessions % 4 ? "DONE" : "NEXT"}</span>)}</div><p>Every fourth focus fold opens a longer reset.</p></div>
+          </aside>
+        </section>
 
-        {/* Mode Selection */}
-        <div className="grid grid-cols-3 gap-4">
-          <button
-            onClick={() => setModeAndReset('work')}
-            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
-              mode === 'work' 
-                ? 'bg-rose-500 text-white shadow-xl' 
-                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
-            }`}
-          >
-            <div className="text-4xl mb-2">🎯</div>
-            <div className="font-bold">Focus</div>
-            <div className="text-sm opacity-75">25 min</div>
-          </button>
-          <button
-            onClick={() => setModeAndReset('shortBreak')}
-            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
-              mode === 'shortBreak' 
-                ? 'bg-green-500 text-white shadow-xl' 
-                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
-            }`}
-          >
-            <div className="text-4xl mb-2">☕</div>
-            <div className="font-bold">Short Break</div>
-            <div className="text-sm opacity-75">5 min</div>
-          </button>
-          <button
-            onClick={() => setModeAndReset('longBreak')}
-            className={`p-6 rounded-2xl text-center transition transform hover:scale-105 ${
-              mode === 'longBreak' 
-                ? 'bg-blue-500 text-white shadow-xl' 
-                : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl'
-            }`}
-          >
-            <div className="text-4xl mb-2">🌴</div>
-            <div className="font-bold">Long Break</div>
-            <div className="text-sm opacity-75">15 min</div>
-          </button>
-        </div>
+        <footer className="focus-footer"><span>BOOK / DEV TOOLS</span><span>FOCUS · PAUSE · RETURN</span></footer>
       </div>
-    </div>
+    </main>
   );
 }
